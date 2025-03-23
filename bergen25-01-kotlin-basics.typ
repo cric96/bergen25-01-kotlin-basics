@@ -204,10 +204,12 @@
       #text(weight: "medium", size: 20pt)[Gianluca Aguzzi]
       #text(style: "italic")[Postdococtoral Researcher]
       #text(style: "italic")[University of Bologna]
-      #v(10pt)
+      ---
+      #text(style: "italic")[#link("https://pslab-unibo.github.io/")[Pervasive Computing Lab]]
+      
       #text(weight: "medium")[Connect with me:]
       #link("mailto:gianluca.aguzzi@unibo.it")[#emoji.email]
-      #link("https://gianlucaaguzzi.github.io")[#emoji.globe]
+      #link("https://cric96.github.io")[#emoji.globe]
       
     ],
     [
