@@ -297,6 +297,13 @@
   image("figures/why-kotlin-3.png", width: 50%),
 )
 
+== How to Read this Presentation
+- Each slide is a self-contained unit
+- Slides are organized in a logical sequence
+- In this time span, we will not cover everything
+- Focus on understanding the concepts
+- I leave the rest as a base for Compose presentation and the lab activity
+
 
 = Kotlin 101
 
@@ -1032,6 +1039,605 @@ Kotlin collections is extensive and feature-rich (backend by Java collections):
   - `sequenceOf`
   - `setOf`
 
+= Kotlin for Compose 
+
+== Kotlin for Compose -- Data Classes
+
+- Data classes in Kotlin provide concise syntax for classes whose main purpose is to hold data.
+- Auto-generated functions include toString, equals, hashCode, and copy 
+- Compared to Java, data classes reduce boilerplate and enhance readability.
+
+#grid(
+  columns: (1fr, 1fr),
+  gutter: 16pt,
+  [
+    #text(weight: "medium")[Kotlin Data Class]
+    #text(size: 16pt)[
+    ```kotlin
+    data class Person(
+      val name: String, val age: Int
+    )
+    
+    fun main() {
+        val alice = Person("Alice", 30)
+        val bob = alice.copy(name = "Bob")
+        // Person(name=Alice, age=30)
+        println(alice) 
+        println(bob) // Person(name=Bob, age=30)
+    }
+    ```]
+  ],
+  [
+    #text(weight: "medium")[Java Equivalent]
+    #text(size: 8pt)[
+    ```java
+    public final class Person {
+        private final String name;
+        private final int age;    
+        public Person(String name, int age) {
+            this.name = name;
+            this.age = age;
+        }
+        public String getName() { return name; }
+        public int getAge() { return age; }
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof Person)) return false;
+            Person person = (Person) o;
+            return age == person.age && name.equals(person.name);
+        }
+        @Override
+        public int hashCode() { return Objects.hash(name, age); }
+        @Override
+        public String toString() {
+            return "Person(name=" + name + ", age=" + age + ")";
+        }
+    }
+
+    ```]
+  ]
+)
+
+
+== Kotlin for Compose -- Delegation
+
+#compact-styled-block(
+  [
+    #text(weight: "bold")[Favour composition over inheritance]
+    
+    #fa-quote-left() #text(style: "italic")[A should extend B only if A truly 'is-a' B, if not, *use composition* instead, which means A should hold a reference of B and expose a simpler API.] #fa-quote-right()
+    
+    #text(style: "italic", size: 0.9em)[— J. Bloch, Effective Java, Item 16]
+  ],
+  icon: fa-lightbulb(),
+  fill-color: rgb("#e8f5e9"),
+  stroke-color: rgb("#81c784")
+)
+
+#v(12pt)
+
+- *Delegation* is one of the mechanisms to implement composition..
+  - But it is often verbose and very mechanic in implementation:
+
+#text(size: 16pt)[
+```kotlin
+data class Student(val name: String, val surname: String, val id: String)
+class Exam : MutableCollection<Student> {
+    private val representation = mutableListOf<Student>()
+    override fun add(e E) = representation.add(e)
+    .. // BOOOORING
+}
+```]
+
+== Kotlin for Compose -- Delegation via `by`
+
+Kotlin supports delegation at the language level
+
+```kotlin
+data class Student(val name: String, val surname: String, val id: String)
+
+class Exam : MutableCollection<Student> by mutableListOf<Student>() {
+    fun register(name: String, surname: String, id: String) = 
+      add(Student(name, surname, id))
+    override fun toString() = toList().toString() // No access to the delegate! `toString` unavailable!
+}
+val exam = Exam()
+exam.register("Gianluca", "Aguzzi", "00000025")
+exam // [Student(name=Gianluca, surname=Aguzzi, id=00000025)]
+exam.clear()
+exam // []
+```
+
+== Kotlin for Compose -- Delegated Properties and Variables
+
+Properties and variables can be delegated as well.
+Some delegates are built-in, e.g. `lazy`
+
+```kotlin
+val someLazyString by lazy {
+    println("I'm initializing myself")
+    "I'm intialized"
+}
+println("Doing stuff")
+println(someLazyString) // "I'm initializing myself" gets printed here
+```
+
+== Kotlin for Compose -- Delegation via Maps
+
+Class properties can be stored in an appropriate `Map`.
+Useful when dealing with dynamic languages or untyped serialization (e.g. JSON or YAML)
+
+```kotlin
+val fromJson = mapOf("name" to "John Smith", "birthYear" to 2020)
+class Person(val jsonRepresentation: Map<String, Any>) {
+    val name by jsonRepresentation
+    val birthYear: Int by jsonRepresentation
+    override fun toString() = "\$name born in \$birthYear"
+}
+Person(fromJson)
+```
+
+== Kotlin for Compose -- Delegation via Maps and Mutability
+
+In case of mutable properties, a `MutableMap` is required as delegate
+
+```kotlin
+val janesJson: MutableMap<\String, Any> = mutableMapOf("name" to "Jane Smith", "birthYear" to 1999)
+class MutablePerson(val jsonRepresentation: MutableMap<\String, Any>) {
+    var name by jsonRepresentation
+    var birthYear: Int by jsonRepresentation
+    override fun toString() = "\$name born in \$birthYear"
+}
+val jane = MutablePerson(janesJson)
+jane.toString()
+jane.name = "Janet Smitherson"
+jane.toString()
+janesJson // Does it change? {name=Janet Smitherson, birthYear=1999} -- YES! Bidirectional
+```
+
+== Kotlin for Compose -- Custom Delegates
+
+A valid delegate for a `val` is a `class` with a method:
+```kotlin
+operator fun getValue(thisRef: T, property: KProperty<*>): R
+```
+where T is the "owner" type, and R is the type of the property
+
+A valid delegate for a `var` must also have a `setValue` method:
+```kotlin
+operator fun setValue(thisRef: T, property: KProperty<*>, value: P): R
+```
+where T and R are the same as in `getValue`, and P is a supertype of R
+
+== Kotlin for Compose -- Lambda Expressions
+
+Kotlin lambda expression's syntax is inspired by Groovy
+and is similar to Smalltalk / Ceylon / Xtend / Ruby as well:
+- Enclosing an expression in curly brackets creates a lambda expression
+- Parameters are listed *inside* the brackets, a `->` separates them from the body
+- If there is one single parameter, it can be unspecified and referred with the keyword `it`
+
+#text(size: 15pt)[
+```kotlin
+val myLambda = {
+    println("Hey I'm computing")
+}
+fun whatsMyReturnType() = {
+    "A string"
+}
+myLambda.invoke() // Java-style invocation
+myLambda() // Decent-style invocation (invoke is an operator!)
+myLambda()() // Guess error: expression 'myLambda()' of type 'Unit' cannot be invoked as a function.
+whatsMyReturnType() // Subtle, but the compiler raises warnings
+whatsMyReturnType()() // A string```
+]
+== Kotlin for Compose -- Function Type Literals
+
+Kotlin supports function type literals, eliminating the need for verbose Java interfaces like `Function<T, R>`, `BiConsumer<T, R>`, etc.
+
+Function type literals have parameter types in parentheses, a `->`, and the return type:
+- `() -> Any` -- 0-ary function returning `Any`
+- `(String) -> Any` -- Unary function taking a `String` and returning `Any`
+- `(String, Int) -> Unit` -- Binary function taking a `String` and an `Int` and returning `Unit`
+- `(String, Int?) -> Any?` -- Binary function taking a `String` and a nullable `Int?` returning a nullable `Any?`
+
+```kotlin
+fun <T, I, R> compose(f: (I) -> R, g: (T) -> I): (T) -> R = { f(g(it)) }
+compose({v: Int -> v * v}, {v: Double -> v.toInt()})(3.9) // 9
+```
+
+== Kotlin for Compose -- Function References
+
+- *Function references* allow treating functions as values using the `::` operator
+- *Syntax*: 
+  - `::functionName` for top-level functions
+  - `ReceiverType::functionName` for extension functions
+  - `instanceRef::memberFunction` for member functions
+
+
+```kotlin
+fun <T, I, R> compose(f: (I) -> R, g: (T) -> I): (T) -> R = { f(g(it)) }
+fun square(v: Int) = v * v
+fun floor(v: Double) = v.toInt()
+compose(::square, ::floor)(3.9)
+```
+
+== Kotlin for Compose -- The Trailing Lambda Convention
+
+#styled-block(
+  "The Trailing Lambda Convention", 
+  [
+    Kotlin convention that improves readability:
+    
+    #text(style: "italic")[When a lambda is the last parameter, it can be placed outside the parentheses.]
+    
+    This simple rule enables elegant DSL-like syntax that feels like creating custom language constructs.
+  
+  ],
+  icon: fa-code() + h(0.4em),
+  fill-color: rgb("#e3f2fd"),
+  stroke-color: rgb("#90caf9"),
+  title-color: rgb("#1565c0")
+)
+#text(size: 12pt)[
+```kotlin
+fun delayed(delay: Long = 1000L, operation: () -> Unit) = Thread {
+    Thread.sleep(delay); operation()
+}.start()
+println("Start")
+// Now we have a delayed block!
+delayed {
+    println("I was waiting")
+}
+delayed(300) { println("I wait less") }
+println("Finished")
+```]
+
+== Kotlin for Compose -- Closures
+
+- Closures are supported and can capture both mutable and immutable variables.
+- Unlike Java, Kotlin allows modification of captured variables.
+
+#grid(
+  columns: (1fr, 1fr),
+  gutter: 16pt,
+  [
+    #text(weight: "medium")[Kotlin]
+    ```kotlin
+    // Modifying captured variable - works fine
+    var sum = 0
+    (0..100).map {
+        sum += it  // Modifies outer variable
+        it * 2
+    }
+    println(sum)  // 5050
+    ```
+  ],
+  [
+    #text(weight: "medium")[Java]
+    ```java
+    // Java requires effectively final variables
+    int sum = 0;  // Not final
+    List.of(1, 2, 3).stream().map(it -> {
+        sum += it;  // Error: Variable used in lambda
+                    // should be final or effectively final
+        return it * 2;
+    });
+    ```
+  ]
+)
+
+== Kotlin for Compose -- Flow Control with Lambdas
+
+Kotlin rule: `return` returns from the closest *named* function
+
+```kotlin
+fun breakingFlow(): List<Int> = (0..10).toList().map {
+    if (it > 4) {
+        return (0..it).toList() // returns from breakingFlow
+    }
+    it
+}
+breakingFlow()
+```
+
+== Kotlin for Compose -- Destructuring Lambda Parameters
+
+Lambda parameters can be destructured
+
+```kotlin
+mapOf(46 to "Rossi", 4 to "Dovizioso").map { (number, rider) ->
+    // destructured Pair
+    "$rider has number $number"
+}
+```
+
+== Kotlin for Compose -- Extension Functions
+
+Kotlin allows to extend any type capabilities from anywhere via _extension functions_
+
+#text(size: 12pt)[
+```kotlin
+fun String.containsBatman(): Boolean = 
+  ".*b.*a.*t.*m.*a.*n.*".toRegex().matches(this)
+"nanananan batman".containsBatman() // true
+```]
+
+Inside extension functions, the *receiver* of the method is overridden\
+Any type, including nullables, can be extended (object`s and `companion`s)
+`
+
+#compact-warning-block(
+  [*IMPORTANT*: calls to extension methods are resolved *statically*.\
+   Namely, *the receiver type is determined at compile time*.],
+  icon: fa-exclamation-circle() + " "
+)
+#compact-warning-block(
+  [*IMPORTANT/2*: Extensions cannot shadow members,\
+   *members always take priority*],
+  icon: fa-exclamation-triangle() + " "
+)
+
+== Kotlin for Compose -- Extension Properties
+
+Same as functions, but for properties
+
+```kotlin
+val String.containsBatman get(): Boolean = 
+  ".*b.*a.*t.*m.*a.*n.*".toRegex().matches(this)
+"nananananana batman".containsBatman // true
+```
+
+Note:
+1. extension properties cannot have backing fields
+2. extension properties can't get initialized,
+their behaviour is entirely specified by `get` and `set` accessors.
+
+== Kotlin for Compose -- Extension Function Type Literals
+
+Extensions functions are... functions, like any other as such, their type can be legally expressed by:
+- prefixing the *receiver type*
+- following by a `.`
+- then list parameters and return types as for any function type literal
+
+#text(size: 12pt)[
+```kotlin
+// Extension function taking an extension function as parameter
+fun <T> MutableList<T>.configure(configuration: MutableList<T>.() -> Unit): MutableList<T> {
+    configuration()
+    return this
+}
+// We are creating a configuration block!
+mutableListOf<String>().configure {
+    add("Pippo")
+    add("Pluto")
+    add("Paperino")
+}
+```]
+
+... sounds easy to write DSLs ...
+
+== Kotlin for Compose -- Extension Members and Implicit Receivers
+
+When extensions are defined as members, there are multiple *implicit receivers*:
+1. _dispatch receiver_: the `object` or instance of the `class` in which the extension is declared
+2. -extension receiver- the instance of the *receiver type* of the extension is called
+
+*Extension receivers have priority*, dispatch receivers access requires the *qualified `this`* syntax
+
+#text(size: 12pt)[
+```kotlin
+object Batman { // the Batman object is the dispatch receiver
+    val name = "Batman"
+    val String.Companion.intro get() = generateSequence { Double.NaN } // String.Companion is extension receiver
+        .take(10)
+        .joinToString(separator = "")
+    fun String.withBatman() = "$this ${ this@Batman.name }!" // Qualified this access to the dispatch receiver
+}
+```]
+
+== Kotlin for Compose -- DSL Scope Control via Extension Members
+
+Extension members are visible only when the dispatch receiver is the type where the extensions were defined\
+This enables a powerful form of *scope control*
+
+#text(size: 12pt)[
+```kotlin
+object Batman { // Batman is the dispatch receiver
+    val name = "Batman"
+    val String.Companion.intro get() = generateSequence { Double.NaN } // String is extension receiver
+        .take(10)
+        .joinToString(separator = "")
+    fun String.withBatman() = "$this ${ this@Batman.name }!" // Qualified this access to the dispatch receiver
+}
+// Extension members are actual members! They require a receiver!
+String.intro.withBatman() // error: unresolved reference: intro
+fun <T, R> insideTheScopeOf(receiver: T, method: T.() -> R): R = receiver.method()
+insideTheScopeOf(Batman) { // inside this function, Batman is the dispatch receiver!
+    String.intro.withBatman() // OK!
+}
+```]
+
+== Kotlin for Compose -- Scope Functions
+
+Kotlin provides a number of built-in functions that run a lambda expression in a custom scope:
+- by changing the receiver (as we've done with `insideTheScopeOf` in the previous slide)
+- by creating an implicit `it` parameter
+- by changing the return type
+
+=== Kotlin for Compose -- `let`: `T.((T) -> R) -> R`
+
+Can be invoked on an object, passing a lambda expression.\
+The method receiver is bound to the lambda parameter\
+the return type is the result of the function
+
+```kotlin
+1.let { "${it + 1}1" } // 21: String
+1.let { one -> "${one + 1}1" } // Same as above: it's a normal lambda
+```
+
+=== Kotlin for Compose -- `run`: `T.(T.() -> R) -> R`
+
+Can be invoked on an object, passing a lambda expression.\
+The method receiver is bound to the implicit receiver `this`\
+the return type is the result of the function
+
+```kotlin
+1.run { "${this + 1}1" } // 21: String
+```
+
+=== Kotlin for Compose -- `with`: `(T.() -> R) -> R`
+
+Non-extension version of `run`,\
+the context object is passed as first parameter\
+The method receiver is bound to the implicit receiver `this`\
+the return type is the result of the function
+
+```kotlin
+with(1) { "${this + 1}1" } // 21: String
+```
+
+=== Kotlin for Compose -- `apply`: `T.(T.() -> Unit) -> T`
+
+Similar to `run`, but returns the context object\
+Used to cause side effects from a specific context, and returning the original object
+
+#text(size: 14pt)[
+```kotlin
+1.apply { println("${this + 1}1") } // Prints 21, returns 1
+mutableListOf<Int>().apply {
+    addAll((1..10).toList())
+} // [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+```
+]
+=== Kotlin for Compose -- `also`: `T.((T) -> Unit) -> T`
+
+Similar to `apply`, but does not change the context,\
+the context object is bound to the first lambda parameter\
+Used to cause side effects and returning the original object
+
+```kotlin
+1.also { println("${it + 1}1") } // Prints 21, returns 1
+```
+
+= Kotlin Advanced 
+
+==  Kotlin Advanced -- Destructuring Declarations
+
+If a class has `operator` functions named called `componentX` with `X` an integer from `1`,
+they can be "destructured".
+
+This feature is *way* less powerful than Scala's pattern matching.
+
+#grid(
+  columns: (1fr, 1fr),
+  gutter: 16pt,
+  [
+    #text(weight: "medium")[Destructuring Pairs]
+    ```kotlin
+    val ferrari2021 = "Ferrari" to Pair("Sainz", "Leclerc")
+    val (team, lineup) = ferrari2021
+    team // "Ferrari"
+    lineup // Sainz to Leclerc
+    val (driver1, driver2) = lineup
+    driver1 // Sainz
+    driver2 // Leclerc
+    ```
+  ],
+  [
+    #text(weight: "medium")[Custom Component Functions]
+    ```kotlin
+    class A {
+        operator fun component1() = 1
+        operator fun component2() = 2
+        operator fun component3() = 3
+    }
+    val (a, b, c) = A()
+    ```
+  ]
+)
+
+== Kotlin Advanced -- Sealed Hierarchies
+- classes, not supported for interfaces -- Supported since Kotlin 1.5.0
+- subtypes must be defined inside the sealed class
+- sealed hierarchies proved *exhaustive checking* inside `where` clauses
+
+```kotlin
+sealed interface Booze {
+    object Rum : Booze
+    object Whisky : Booze
+    object Vodka : Booze
+}
+fun goGetMeSome(beverage: Booze) = when (beverage) {
+    is Booze.Rum -> "Diplomatico"
+    is Booze.Whisky -> "Caol Ila"
+    is Booze.Vodka -> "Zubrowka"
+}
+goGetMeSome(Booze.Rum)
+```
+
+== Kotlin Advanced -- Object Expressions
+
+`object` expressions replace Java anonymous classes
+
+#grid(
+  columns: (1fr, 1fr),
+  gutter: 16pt,
+  [
+    *Java:*
+    ```java
+    Test anonymousTest = new Test() {
+        @Override
+        public void first() { }
+        
+        @Override
+        public void second() { }
+    };
+    ```
+  ],
+  [
+    *Kotlin:*
+    ```kotlin
+    interface Test {
+        fun first(): Unit
+        fun second(): Unit
+    }
+    val anonymousTest = object : Test {
+        override fun first() { }
+        override fun second() { }
+    }
+    ```
+  ]
+)
+
+== Kotlin Advanced  -- Type Aliases
+
+- Types can be aliased
+- Only at the top level
+
+```kotlin
+typealias Drivers = Pair<\String, String>
+typealias Lineup = Pair<\String, Drivers>
+typealias F1Season = Map<\String, Drivers>
+val `f1 2020`: F1Season = mapOf(
+    Team("Ferrari", Drivers("Vettel", "Leclerc")),
+    Team("RedBull", Drivers("Versbatten", "Albon")),
+    Team("Merdeces", Drivers("Hamilton", "Bottas")),
+)
+`f1 2020` // Map<String, Pair<String, Pair<String, String>>>
+```
+
+== Kotlin Advanced -- What next?
+- Kotlin is a very rich language with a lot of features
+- We've only scratched the surface
+- Some of aother features include:
+  - Coroutines
+  - Inline classes
+  - Contracts
+  - Multiplatform projects
+  - Coroutines
+  - Annotations
 
 == Acknowledgements
 
