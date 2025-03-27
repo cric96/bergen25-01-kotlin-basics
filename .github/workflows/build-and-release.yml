@@ -57,7 +57,7 @@ jobs:
       
       - name: Autotag
         id: autotag
-        if: github.ref_name == 'master'
+        if: github.ref_name == 'main'
         run: |
           git config --global user.name "${GITHUB_ACTOR}"
           git config --global user.email "${GITHUB_ACTOR}@users.noreply.github.com"
@@ -69,7 +69,7 @@ jobs:
 
       - name: Release
         uses: softprops/action-gh-release@v2
-        if: github.ref_name == 'master'
+        if: github.ref_name == 'main'
         with:
           name: "Release — ${{ steps.autotag.outputs.tag }}"
           files: "*.pdf"
