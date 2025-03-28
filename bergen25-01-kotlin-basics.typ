@@ -195,6 +195,7 @@
   - Basic understanding of programming concepts
   - Familiarity with Java or another object-oriented language
   - No prior experience with Kotlin is required
+- Code repository: https://github.com/cric96/bergen-01-kotlin-basics-code
 
 
 == 
@@ -1002,7 +1003,7 @@ fun <T, P, A, L, R, N, E> navigationStrategy()
   }
   ```
 
-
+/*
 == Type Reification
 
   Generic runtime strategies:
@@ -1021,7 +1022,7 @@ fun <T, P, A, L, R, N, E> navigationStrategy()
   - `inline` functions only work in Kotlin-compiled code
   - `reified` requires inlining
   - Limited Java interoperability
-
+*/
 
 == Collection Characteristics
 Kotlin collections is extensive and feature-rich (backend by Java collections):
@@ -1041,6 +1042,24 @@ Kotlin collections is extensive and feature-rich (backend by Java collections):
 
 = Kotlin for Compose 
 
+== Kotlin for Compose -- Overview
+
+#feature-block(
+  "Key Kotlin Features for Compose", 
+  [
+    - *Jetpack Compose*: Modern UI toolkit for Android — covered in next lesson
+    
+    *Essential features we'll cover today:*
+    - #text(weight: "medium")[Data classes:] Concise syntax for modeling UI state
+    - #text(weight: "medium")[Delegation:] Powerful mechanism for state management
+    - #text(weight: "medium")[Lambdas:] First-class functions for component definitions
+    - #text(weight: "medium")[DSL capabilities:] Creating declarative UI hierarchies
+    
+    *Not covered today:*
+    - Coroutines for asynchronous programming
+  ],
+  icon: fa-code() + h(0.4em)
+)
 == Kotlin for Compose -- Data Classes
 
 - Data classes in Kotlin provide concise syntax for classes whose main purpose is to hold data.
@@ -1183,11 +1202,11 @@ Person(fromJson)
 In case of mutable properties, a `MutableMap` is required as delegate
 
 ```kotlin
-val janesJson: MutableMap<\String, Any> = mutableMapOf("name" to "Jane Smith", "birthYear" to 1999)
-class MutablePerson(val jsonRepresentation: MutableMap<\String, Any>) {
+val janesJson: MutableMap<String, Any> = mutableMapOf("name" to "Jane Smith", "birthYear" to 1999)
+class MutablePerson(val jsonRepresentation: MutableMap<String, Any>) {
     var name by jsonRepresentation
     var birthYear: Int by jsonRepresentation
-    override fun toString() = "\$name born in \$birthYear"
+    override fun toString() = "$name born in $birthYear"
 }
 val jane = MutablePerson(janesJson)
 jane.toString()
@@ -1617,9 +1636,9 @@ goGetMeSome(Booze.Rum)
 - Only at the top level
 
 ```kotlin
-typealias Drivers = Pair<\String, String>
-typealias Lineup = Pair<\String, Drivers>
-typealias F1Season = Map<\String, Drivers>
+typealias Drivers = Pair<String, String>
+typealias Lineup = Pair<String, Drivers>
+typealias F1Season = Map<String, Drivers>
 val `f1 2020`: F1Season = mapOf(
     Team("Ferrari", Drivers("Vettel", "Leclerc")),
     Team("RedBull", Drivers("Versbatten", "Albon")),
